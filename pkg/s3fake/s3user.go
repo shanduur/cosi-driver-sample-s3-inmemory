@@ -1,4 +1,4 @@
-// Copyright 2021 The Kubernetes Authors.
+// Copyright 2023 The Kubernetes Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,16 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package pkg
+package s3fake
 
-import (
-	"context"
-)
+type User struct {
+	// AccessKey is the access key for the user.
+	AccessKey string
 
-func NewDriver(ctx context.Context, provisioner string) (*IdentityServer, *ProvisionerServer, error) {
-	return &IdentityServer{
-			provisioner: provisioner,
-		}, &ProvisionerServer{
-			provisioner: provisioner,
-		}, nil
+	// SecretKey is the secret key for the user.
+	SecretKey string
 }
