@@ -1,3 +1,4 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -36,20 +37,34 @@ spec:
       - name: socket
         emptyDir: {}
       containers:
-      - name: cosi-driver
-        image: $(DRIVER_IMAGE_ORG)/sample-cosi-driver:$(DRIVER_IMAGE_VERSION)
-        imagePullPolicy: Always
-        volumeMounts:
-        - mountPath: /var/lib/cosi
-          name: socket
-      - name: objectstorage-provisioner-sidecar
-        image: $(PROVISIONER_IMAGE_ORG)/objectstorage-sidecar:$(PROVISIONER_IMAGE_VERSION)
-        imagePullPolicy: Always
-        env:
-        - name: POD_NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        volumeMounts:
-        - mountPath: /var/lib/cosi
-          name: socket
+        - name: cosi-driver
+          image: $(DRIVER_IMAGE_ORG)/sample-cosi-driver:$(DRIVER_IMAGE_VERSION)
+          imagePullPolicy: Always
+          volumeMounts:
+            - mountPath: /var/lib/cosi
+              name: socket
+          resources:
+            limits:
+              cpu: 100m
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 1Gi
+        - name: objectstorage-provisioner-sidecar
+          image: $(PROVISIONER_IMAGE_ORG)/objectstorage-sidecar:$(PROVISIONER_IMAGE_VERSION)
+          imagePullPolicy: Always
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - mountPath: /var/lib/cosi
+              name: socket
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi

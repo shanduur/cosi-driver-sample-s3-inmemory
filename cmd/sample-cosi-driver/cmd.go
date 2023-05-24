@@ -15,8 +15,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
 	"fmt"
+	"net/http"
 	"os/signal"
 	"strings"
 	"sync"
@@ -28,16 +30,16 @@ import (
 	"github.com/spf13/viper"
 	"k8s.io/klog/v2"
 
+	"github.com/shanduur/cosi-driver-sample-s3-inmemory/pkg/driver"
+	"github.com/shanduur/cosi-driver-sample-s3-inmemory/pkg/s3fake"
 	"sigs.k8s.io/container-object-storage-interface-provisioner-sidecar/pkg/provisioner"
-	"sigs.k8s.io/cosi-driver-sample/pkg/driver"
-	"sigs.k8s.io/cosi-driver-sample/pkg/s3fake"
 )
 
-const provisionerName = "sample-driver.objectstorage.k8s.io"
+const provisionerName = "cosi-driver-sample-s3-inmemory.objectstorage.k8s.io"
 
 var (
 	driverAddress = "unix:///var/lib/cosi/cosi.sock"
-	s3URL         = "http://s3.sample-cosi-driver.svc.cluster.local:80"
+	s3URL         = "0.0.0.0:80"
 )
 
 var cmd = &cobra.Command{
@@ -105,7 +107,8 @@ func run(ctx context.Context, args []string) error {
 	// Run the driver server as separate goroutine
 	go func(ctx context.Context) {
 		defer wg.Done()
-		if err := server.Run(ctx); err != nil {
+		klog.V(3).InfoS("starting driver server", "address", driverAddress)
+		if err := server.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
 			klog.Fatalf("driver server failed: %v", err)
 		}
 	}(ctx)
@@ -113,7 +116,8 @@ func run(ctx context.Context, args []string) error {
 	// Run the S3 server as separate goroutine
 	go func(ctx context.Context) {
 		defer wg.Done()
-		if err := s3.Run(ctx); err != nil {
+		klog.V(3).InfoS("starting s3 server", "address", s3URL)
+		if err := s3.Run(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			klog.Fatalf("s3 server failed: %v", err)
 		}
 	}(ctx)

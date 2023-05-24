@@ -1,0 +1,6 @@
+apiVersion: objectstorage.k8s.io/v1alpha1
+kind: BucketAccessClass
+metadata:
+  name: example-bac
+driverName: cosi-driver-sample-s3-inmemory.objectstorage.k8s.io
+authenticationType: KEY

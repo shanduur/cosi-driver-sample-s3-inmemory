@@ -13,10 +13,41 @@
 
 package s3fake
 
+import (
+	"math/rand"
+	"time"
+)
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
+
+var custset = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789/+=")
+
 type User struct {
-	// AccessKey is the access key for the user.
+	// ID is the ID of the user.
+	ID string
+
+	// Name is the name of the user.
+	Name string
+
+	// accessKey is the access key for the user.
 	AccessKey string
 
-	// SecretKey is the secret key for the user.
+	// secretKey is the secret key for the user.
 	SecretKey string
+}
+
+// genKeyPair generates a key pair for the user. It will replace any existing key pair.
+func (u *User) genKeyPair() {
+	u.AccessKey = genKey(20)
+	u.SecretKey = genKey(40)
+}
+
+func genKey(n int) string {
+	b := make([]rune, n)
+	for i := range b {
+		b[i] = custset[rand.Intn(len(custset))]
+	}
+	return string(b)
 }

@@ -1,7 +1,8 @@
-ARG toolchain=latest
+ARG TOOLCHAIN_VERSION=latest
 # Builder image with toolchain - can be overridden with --build-arg
-FROM docker.io/library/golang:${toolchain} AS builder
+FROM docker.io/library/golang:${TOOLCHAIN_VERSION} AS builder
 
+# Set the working directory and copy the source code
 WORKDIR /cosi
 COPY . .
 
@@ -17,12 +18,14 @@ COPY --from=builder /cosi/bin/sample-cosi-driver /usr/local/bin/sample-cosi-driv
 WORKDIR /cosi
 
 # Create a non-root user
-RUN echo "cosi::1001:cosi" > /etc/group && \
-    echo "cosi::1001:1001::/cosi:/usr/bin/sh" > /etc/passwd
+RUN echo "cosi:*:1001:cosi" >> /etc/group && \
+    echo "cosi:*:1001:1001::/cosi:/bin/false" >> /etc/passwd
 
 # Set permissions on the binary
 RUN chown 1001:1001 /usr/local/bin/sample-cosi-driver && \
-    chmod 0644 /usr/local/bin/sample-cosi-driver
+    chmod 0755 /usr/local/bin/sample-cosi-driver && \
+    mkdir -p /var/lib/cosi && \
+    chown -R 1001:1001 /var/lib/cosi
 
 # Run as non-root
 USER cosi
@@ -31,11 +34,14 @@ USER cosi
 EXPOSE 80
 EXPOSE 443
 
+# set volume mount point for cosi socket
+VOLUME [ "/var/lib/cosi" ]
+
 # Disable healthcheck
 HEALTHCHECK NONE
 
 # Metadata params
-LABEL maintainer="Kubernetes Authors"
+LABEL maintainer="Mateusz Urbanek <mateusz.urbanek.98@gmail.com>"
 
 ENTRYPOINT [ "/usr/local/bin/sample-cosi-driver" ]
 CMD []

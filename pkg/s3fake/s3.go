@@ -15,11 +15,12 @@ package s3fake
 
 import (
 	"context"
-	"net"
+	"errors"
 	"net/http"
 	"sync"
 
 	"github.com/johannesboyne/gofakes3"
+	"k8s.io/klog/v2"
 )
 
 // S3Fake is a fake S3 server.
@@ -31,8 +32,6 @@ type S3Fake struct {
 
 // Run starts the fake S3 server.
 func (s *S3Fake) Run(ctx context.Context) error {
-	lis := &net.TCPListener{}
-
 	faker := gofakes3.New(s.Backend)
 
 	srv := http.Server{
@@ -40,7 +39,17 @@ func (s *S3Fake) Run(ctx context.Context) error {
 		Handler: faker.Server(),
 	}
 
-	return srv.Serve(lis)
+	go func() {
+		<-ctx.Done()
+		ctx, cancel := context.WithTimeout(context.Background(), 5)
+		defer cancel()
+		err := srv.Shutdown(ctx)
+		if err != nil {
+			klog.V(3).ErrorS(err, "failed to shutdown server")
+		}
+	}()
+
+	return srv.ListenAndServe()
 }
 
 // CreateBucket creates a bucket.
@@ -61,10 +70,13 @@ func (s *S3Fake) DeleteBucket(bucket string) error {
 // CreateUser creates a user.
 func (s *S3Fake) CreateUser(name string) (*User, error) {
 	user := &User{
-		SecretKey: "secret-key",
-		AccessKey: "access-key",
+		Name: name,
 	}
 
+	// Generate a key pair for the user.
+	user.genKeyPair()
+
+	// Store the user in the map.
 	s.Users.Store(name, user)
 
 	return user, nil
@@ -78,8 +90,16 @@ func (s *S3Fake) DeleteUser(name string) error {
 }
 
 // UserExists checks if a user exists.
-func (s *S3Fake) UserExists(name string) (bool, error) {
-	_, ok := s.Users.Load(name)
+func (s *S3Fake) UserExists(name string) (*User, error) {
+	i, ok := s.Users.Load(name)
+	if !ok {
+		return nil, nil
+	}
 
-	return ok, nil
+	user, ok := i.(*User)
+	if !ok {
+		return nil, errors.New("failed to get user")
+	}
+
+	return user, nil
 }
