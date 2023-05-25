@@ -1,4 +1,10 @@
-VERSION ?= $(shell git tag | tail -n 1 | grep "" || echo 'v0.0.0')$(shell git diff --quiet || echo '-dev')
+_date := $(shell date '+%y%m%d')
+_hash := $(shell git rev-parse --short=8 HEAD)
+_dirty := $(shell git diff --quiet || echo '-dev')
+_tag := $(shell git tag | tail -n 1 | grep "" || echo 'v0.0.0')
+
+VERSION ?= v${_date}-${_tag}-${_hash}
+LATEST := $(shell [ ! -z "${_dirty}" ] && echo 'dev' || echo 'latest')
 
 REGISTRY := docker.io
 NAME ?= $(shell sed -En 's/^module (.*)$$/\1/p' go.mod | cut -d / -f 3 )
@@ -14,7 +20,9 @@ LDFLAGS += -X ${MODULE_NAME}/version.Version=${VERSION}
 LDFLAGS += -X ${MODULE_NAME}/version.Name=${NAME}
 
 CONTAINERFILE ?= Dockerfile
-OCI_TAGS += --tag=${REGISTRY}/${REPOSITORY}/${NAME}:latest
+ifeq (${LATEST},latest)
+	OCI_TAGS += --tag=${REGISTRY}/${REPOSITORY}/${NAME}:${LATEST}
+endif
 OCI_TAGS += --tag=${REGISTRY}/${REPOSITORY}/${NAME}:${VERSION}
 OCI_BUILDARGS += --build-arg=TOOLCHAIN_VERSION=${TOOLCHAIN_VERSION}
 

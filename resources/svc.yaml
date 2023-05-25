@@ -4,6 +4,7 @@ kind: Service
 metadata:
   name: s3
 spec:
+  type: NodePort
   selector:
     app.kubernetes.io/name: cosi-driver-sample
   ports:

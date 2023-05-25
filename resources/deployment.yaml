@@ -34,12 +34,14 @@ spec:
     spec:
       serviceAccountName: objectstorage-provisioner-sa
       volumes:
-      - name: socket
-        emptyDir: {}
+        - name: socket
+          emptyDir: {}
       containers:
         - name: cosi-driver
-          image: $(DRIVER_IMAGE_ORG)/sample-cosi-driver:$(DRIVER_IMAGE_VERSION)
-          imagePullPolicy: Always
+          image: docker.io/shanduur/cosi-driver-sample-s3-inmemory:v230525-v0.0.0-f8916481
+          imagePullPolicy: IfNotPresent
+          command:
+            - "-v=5"
           volumeMounts:
             - mountPath: /var/lib/cosi
               name: socket
@@ -51,8 +53,10 @@ spec:
               cpu: 100m
               memory: 1Gi
         - name: objectstorage-provisioner-sidecar
-          image: $(PROVISIONER_IMAGE_ORG)/objectstorage-sidecar:$(PROVISIONER_IMAGE_VERSION)
-          imagePullPolicy: Always
+          image: gcr.io/k8s-staging-sig-storage/objectstorage-sidecar/objectstorage-sidecar:v20230130-v0.1.0-24-gc0cf995
+          imagePullPolicy: IfNotPresent
+          command:
+            - "-v=5"
           env:
             - name: POD_NAMESPACE
               valueFrom:
