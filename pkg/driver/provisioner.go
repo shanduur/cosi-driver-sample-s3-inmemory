@@ -129,5 +129,5 @@ func (s *ProvisionerServer) DriverRevokeBucketAccess(ctx context.Context,
 	}
 
 	klog.V(3).InfoS("DriverRevokeBucketAccess: access revoked", "user", req.AccountId, "bucket", req.BucketId)
-	return nil, status.Error(codes.Unimplemented, "DriverCreateBucket: not implemented")
+	return &cosi.DriverRevokeBucketAccessResponse{}, nil
 }

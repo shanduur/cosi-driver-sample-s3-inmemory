@@ -19,10 +19,8 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
-	"os/signal"
 	"strings"
 	"sync"
-	"syscall"
 
 	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"github.com/spf13/cobra"
@@ -88,9 +86,6 @@ func init() {
 
 // run is the main entrypoint for the driver.
 func run(ctx context.Context, args []string) error {
-	ctx, cancel := setupSignalHandler(ctx)
-	defer cancel()
-
 	s3, err := setupS3(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to setup S3: %w", err)
@@ -127,18 +122,10 @@ func run(ctx context.Context, args []string) error {
 	return nil
 }
 
-// setupSignalHandler creates a context that is canceled when SIGTERM or SIGINT is received.
-func setupSignalHandler(ctx context.Context) (context.Context, context.CancelFunc) {
-	return signal.NotifyContext(ctx, syscall.SIGTERM, syscall.SIGINT)
-}
-
 // setupS3 creates s3 fake service. It is only for demo purpose.
 // In real world, S3 server should be a separate component, e.g. MinIO, AWS S3, etc.
 func setupS3(ctx context.Context) (*s3fake.S3Fake, error) {
-	s3 := &s3fake.S3Fake{
-		Backend: s3mem.New(),
-		Address: s3URL,
-	}
+	s3 := s3fake.NewS3Fake(s3URL, s3mem.New())
 
 	return s3, nil
 }

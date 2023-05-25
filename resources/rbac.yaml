@@ -9,15 +9,47 @@ metadata:
     app.kubernetes.io/version: main
     app.kubernetes.io/name: cosi-driver-sample
 rules:
-- apiGroups: ["objectstorage.k8s.io"]
-  resources: ["buckets", "bucketaccesses","buckets/status", "bucketaccesses/status"]
-  verbs: ["get", "list", "watch", "update", "create", "delete"]
-- apiGroups: ["coordination.k8s.io"]
-  resources: ["leases"]
-  verbs: ["get", "watch", "list", "delete", "update", "create"]
-- apiGroups: [""]
-  resources: ["events"]
-  verbs: ["get", "delete", "update", "create"]
+  - apiGroups:
+      - objectstorage.k8s.io
+    resources:
+      - buckets
+      - bucketclaims
+      - bucketaccesses
+      - bucketaccessclasses
+      - buckets/status
+      - bucketclaims/status
+      - bucketaccesses/status
+      - bucketaccessclasses/status
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - delete
+      - watch
+  - apiGroups: 
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - delete
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+      - secrets
+    verbs:
+      - create
+      - get
+      - update
+      - delete
 ---
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1

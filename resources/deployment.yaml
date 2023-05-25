@@ -38,9 +38,9 @@ spec:
           emptyDir: {}
       containers:
         - name: cosi-driver
-          image: docker.io/shanduur/cosi-driver-sample-s3-inmemory:v230525-v0.0.0-f8916481
+          image: docker.io/shanduur/cosi-driver-sample-s3-inmemory:latest
           imagePullPolicy: IfNotPresent
-          command:
+          args:
             - "-v=5"
           volumeMounts:
             - mountPath: /var/lib/cosi
@@ -55,7 +55,7 @@ spec:
         - name: objectstorage-provisioner-sidecar
           image: gcr.io/k8s-staging-sig-storage/objectstorage-sidecar/objectstorage-sidecar:v20230130-v0.1.0-24-gc0cf995
           imagePullPolicy: IfNotPresent
-          command:
+          args:
             - "-v=5"
           env:
             - name: POD_NAMESPACE

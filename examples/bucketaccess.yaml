@@ -1,0 +1,8 @@
+apiVersion: objectstorage.k8s.io/v1alpha1
+kind: BucketAccess
+metadata:
+  name: example-bs
+spec:
+  bucketAccessClassName: example-bac
+  bucketClaimName: example-bm
+  credentialsSecretName: example-bs-creds
