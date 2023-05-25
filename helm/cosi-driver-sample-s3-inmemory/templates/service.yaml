@@ -1,10 +1,15 @@
 apiVersion: v1
-kind: ServiceAccount
+kind: Service
 metadata:
-  name: objectstorage-provisioner-sa
-  namespace: default # must set to default. see https://github.com/kubernetes-sigs/kustomize/issues/1377#issuecomment-694731163
+  name: {{ include "driver.fullname" . }}
   labels:
-    app.kubernetes.io/part-of: container-object-storage-interface
-    app.kubernetes.io/component: driver-sample
-    app.kubernetes.io/version: main
-    app.kubernetes.io/name: cosi-driver-sample
+    {{- include "driver.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: s3
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "driver.selectorLabels" . | nindent 4 }}

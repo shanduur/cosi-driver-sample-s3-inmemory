@@ -1,0 +1,48 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ include "driver.fullname" . }}
+  labels:
+    {{- include "driver.labels" . | trim | nindent 4 }}
+rules:
+  - apiGroups:
+      - objectstorage.k8s.io
+    resources:
+      - buckets
+      - bucketclaims
+      - bucketaccesses
+      - bucketaccessclasses
+      - buckets/status
+      - bucketclaims/status
+      - bucketaccesses/status
+      - bucketaccessclasses/status
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - delete
+      - watch
+  - apiGroups: 
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - create
+      - get
+      - list
+      - patch
+      - update
+      - delete
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - events
+      - secrets
+    verbs:
+      - create
+      - get
+      - update
+      - delete

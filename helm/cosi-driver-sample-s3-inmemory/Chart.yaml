@@ -1,6 +1,9 @@
 apiVersion: v2
 name: cosi-driver-sample-s3-inmemory
 description: A Helm chart for Kubernetes
+
+icon: https://helm.sh/img/helm.svg
+
 type: application
 
 # This is the chart version. This version number should be incremented each time you make changes
