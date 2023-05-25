@@ -1,4 +1,3 @@
----
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: sample-cosi-driver
@@ -14,49 +13,11 @@ commonLabels:
   app.kubernetes.io/version: main
   app.kubernetes.io/name: cosi-driver-sample
 
-configMapGenerator: 
-- name: cosi-driver-sample-config
-  env: resources/cosi-driver-sample.properties
-generatorOptions:         
-  disableNameSuffixHash: true
-  labels:                    
-    generated-by: "kustomize"
-
 resources:
-- resources/ns.yaml
-- resources/sa.yaml
-- resources/rbac.yaml
-- resources/deployment.yaml
+  - resources/deployment.yaml
+  - resources/ns.yaml
+  - resources/rbac.yaml
+  - resources/sa.yaml
+  - resources/svc.yaml
 
-configurations:
- - resources/kustomizeconfig.yaml
-
-vars:
-  - name: PROVISIONER_IMAGE_ORG
-    objref:
-      name: cosi-driver-config
-      kind: ConfigMap
-      apiVersion: v1
-    fieldref:
-      fieldpath: data.OBJECTSTORAGE_PROVISIONER_IMAGE_ORG
-  - name: PROVISIONER_IMAGE_VERSION
-    objref:
-      name: cosi-driver-config
-      kind: ConfigMap
-      apiVersion: v1
-    fieldref:
-      fieldpath: data.OBJECTSTORAGE_PROVISIONER_IMAGE_VERSION
-  - name: DRIVER_IMAGE_ORG
-    objref:
-      name: cosi-driver-config
-      kind: ConfigMap
-      apiVersion: v1
-    fieldref:
-      fieldpath: data.DRIVER_IMAGE_ORG
-  - name: DRIVER_IMAGE_VERSION
-    objref:
-      name: cosi-driver-config
-      kind: ConfigMap
-      apiVersion: v1
-    fieldref:
-      fieldpath: data.DRIVER_IMAGE_VERSION
+replacements: []

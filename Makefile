@@ -1,31 +1,83 @@
-# Copyright 2021 The Kubernetes Authors.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
+_date := $(shell date '+%y%m%d')
+_hash := $(shell git rev-parse --short=8 HEAD)
+_dirty := $(shell git diff --quiet || echo '-dev')
+_tag := $(shell git tag | tail -n 1 | grep "" || echo 'v0.0.0')
 
-CMDS=sample-cosi-driver
+VERSION ?= v${_date}-${_tag}-${_hash}
+LATEST := $(shell [ ! -z "${_dirty}" ] && echo 'dev' || echo 'latest')
 
-all: reltools build
-.PHONY: reltools
-reltools: release-tools/build.make
-release-tools/build.make:
-	$(eval CURDIR := $(shell pwd))
-	$(eval TMP := $(shell mktemp -d))
-	$(shell cd ${TMP} && git clone https://github.com/kubernetes-sigs/container-object-storage-interface-spec)
-	$(shell cp -r ${TMP}/container-object-storage-interface-spec/release-tools ${CURDIR}/)
-	$(shell rm -rf ${TMP})
-	ln -s release-tools/travis.yml travis.yml
+REGISTRY := docker.io
+NAME ?= $(shell sed -En 's/^module (.*)$$/\1/p' go.mod | cut -d / -f 3 )
+REPOSITORY := $(shell sed -En 's/^module (.*)$$/\1/p' go.mod | cut -d / -f 2 )
 
-include release-tools/build.make
+TOOLCHAIN_VERSION := $(shell sed -En 's/^go (.*)$$/\1/p' go.mod)
+MODULE_NAME := $(shell sed -En 's/^module (.*)$$/\1/p' go.mod)
 
-REGISTRY_NAME=quay.io/containerobjectstorage
-IMAGE_TAGS=canary
+GO ?= go
+ENGINE ?= docker
+
+LDFLAGS += -X ${MODULE_NAME}/version.Version=${VERSION}
+LDFLAGS += -X ${MODULE_NAME}/version.Name=${NAME}
+
+CONTAINERFILE ?= Dockerfile
+ifeq (${LATEST},latest)
+	OCI_TAGS += --tag=${REGISTRY}/${REPOSITORY}/${NAME}:${LATEST}
+endif
+OCI_TAGS += --tag=${REGISTRY}/${REPOSITORY}/${NAME}:${VERSION}
+OCI_BUILDARGS += --build-arg=TOOLCHAIN_VERSION=${TOOLCHAIN_VERSION}
+
+GO_SETTINGS += CGO_ENABLED=0
+
+.PHONY: build
+build: clean
+	${GO_SETTINGS} ${GO} build \
+		-ldflags="${LDFLAGS}" \
+		-o ./build/${NAME}
+
+.PHONY: build-release
+build-release: clean
+	LDFLAGS="-s -w" make build
+
+.PHONY: dev-dependencies
+dev-dependencies:
+	cd .dev && docker compose up --detach
+
+.PHONY: docs
+docs:
+	rm -rf ./docs/*.md
+	${GO} run \
+		-ldflags="${LDFLAGS}" \
+		./scripts/docs-generator.go
+
+.PHONY: e2e
+e2e:
+	TEST_MODE="-tags=e2e" make test
+
+.PHONY: test
+test:
+	${GO} test ${TEST_MODE} \
+		-cover \
+		-race \
+		-covermode=atomic \
+		-coverprofile=coverage.out \
+		./...
+
+.PHONY: lint
+lint:
+	golangci-lint run -v
+
+.PHONY: clean
+clean:
+	rm -rf ./build
+
+.PHONY: clean-image
+clean-image:
+	@-${ENGINE} image rm -f $(shell ${ENGINE} image ls -aq ${REGISTRY}/${REPOSITORY}/${NAME}:${VERSION} | xargs -n1 | sort -u | xargs)
+
+.PHONY: image
+image: clean-image
+	${ENGINE} build \
+		${OCI_TAGS} \
+		${OCI_BUILDARGS} \
+		--file ${CONTAINERFILE} \
+		.

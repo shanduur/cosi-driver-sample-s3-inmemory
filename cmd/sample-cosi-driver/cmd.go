@@ -1,4 +1,4 @@
-// Copyright 2021 The Kubernetes Authors.
+// Copyright 2023 The Kubernetes Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -15,22 +15,31 @@ package main
 
 import (
 	"context"
+	"errors"
 	"flag"
+	"fmt"
+	"net/http"
+	"os/signal"
 	"strings"
+	"sync"
+	"syscall"
 
+	"github.com/johannesboyne/gofakes3/backend/s3mem"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"k8s.io/klog/v2"
 
+	"github.com/shanduur/cosi-driver-sample-s3-inmemory/pkg/driver"
+	"github.com/shanduur/cosi-driver-sample-s3-inmemory/pkg/s3fake"
 	"sigs.k8s.io/container-object-storage-interface-provisioner-sidecar/pkg/provisioner"
-	"sigs.k8s.io/cosi-driver-sample/pkg"
 )
 
-const provisionerName = "sample-driver.objectstorage.k8s.io"
+const provisionerName = "cosi-driver-sample-s3-inmemory.objectstorage.k8s.io"
 
 var (
 	driverAddress = "unix:///var/lib/cosi/cosi.sock"
+	s3URL         = "0.0.0.0:80"
 )
 
 var cmd = &cobra.Command{
@@ -63,6 +72,12 @@ func init() {
 		driverAddress,
 		"path to unix domain socket where driver should listen")
 
+	stringFlag(&s3URL,
+		"s3-url",
+		"s",
+		s3URL,
+		"URL where S3 server is listening")
+
 	viper.BindPFlags(cmd.PersistentFlags())
 	cmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
 		if viper.IsSet(f.Name) && viper.GetString(f.Name) != "" {
@@ -71,17 +86,82 @@ func init() {
 	})
 }
 
+// run is the main entrypoint for the driver.
 func run(ctx context.Context, args []string) error {
-	identityServer, bucketProvisioner, err := pkg.NewDriver(ctx, provisionerName)
+	ctx, cancel := setupSignalHandler(ctx)
+	defer cancel()
+
+	s3, err := setupS3(ctx)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to setup S3: %w", err)
+	}
+
+	server, err := setupDriver(ctx, s3URL, s3)
+	if err != nil {
+		return fmt.Errorf("failed to setup driver: %w", err)
+	}
+
+	wg := &sync.WaitGroup{}
+	wg.Add(2)
+
+	// Run the driver server as separate goroutine
+	go func(ctx context.Context) {
+		defer wg.Done()
+		klog.V(3).InfoS("starting driver server", "address", driverAddress)
+		if err := server.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+			klog.Fatalf("driver server failed: %v", err)
+		}
+	}(ctx)
+
+	// Run the S3 server as separate goroutine
+	go func(ctx context.Context) {
+		defer wg.Done()
+		klog.V(3).InfoS("starting s3 server", "address", s3URL)
+		if err := s3.Run(ctx); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			klog.Fatalf("s3 server failed: %v", err)
+		}
+	}(ctx)
+
+	wg.Wait()
+
+	return nil
+}
+
+// setupSignalHandler creates a context that is canceled when SIGTERM or SIGINT is received.
+func setupSignalHandler(ctx context.Context) (context.Context, context.CancelFunc) {
+	return signal.NotifyContext(ctx, syscall.SIGTERM, syscall.SIGINT)
+}
+
+// setupS3 creates s3 fake service. It is only for demo purpose.
+// In real world, S3 server should be a separate component, e.g. MinIO, AWS S3, etc.
+func setupS3(ctx context.Context) (*s3fake.S3Fake, error) {
+	s3 := &s3fake.S3Fake{
+		Backend: s3mem.New(),
+		Address: s3URL,
+	}
+
+	return s3, nil
+}
+
+// setupDriver creates COSI provisioner server.
+func setupDriver(ctx context.Context,
+	s3url string, s3 *s3fake.S3Fake) (*provisioner.COSIProvisionerServer, error) {
+	bucketProvisioner := &driver.ProvisionerServer{
+		Provisioner: provisionerName,
+		S3URL:       s3url,
+		S3:          s3,
+	}
+
+	identityServer := &driver.IdentityServer{
+		Provisioner: provisionerName,
 	}
 
 	server, err := provisioner.NewDefaultCOSIProvisionerServer(driverAddress,
 		identityServer,
 		bucketProvisioner)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("failed to create COSI provisioner server: %w", err)
 	}
-	return server.Run(ctx)
+
+	return server, nil
 }
