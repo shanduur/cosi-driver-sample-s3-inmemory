@@ -30,6 +30,15 @@ type S3Fake struct {
 	Users   *sync.Map
 }
 
+// NewS3Fake creates a new fake S3 server.
+func NewS3Fake(address string, backend gofakes3.Backend) *S3Fake {
+	return &S3Fake{
+		Address: address,
+		Backend: backend,
+		Users:   &sync.Map{},
+	}
+}
+
 // Run starts the fake S3 server.
 func (s *S3Fake) Run(ctx context.Context) error {
 	faker := gofakes3.New(s.Backend)

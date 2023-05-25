@@ -15,31 +15,22 @@ package main
 
 import (
 	"context"
-	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	"k8s.io/klog/v2"
 )
 
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := setupSignalHandler(context.Background())
 	defer cancel()
-
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-
-	go func() {
-		sig := <-sigs
-		klog.InfoS("Signal received", "type", sig)
-		cancel()
-
-		<-time.After(30 * time.Second)
-		os.Exit(1)
-	}()
 
 	if err := cmd.ExecuteContext(ctx); err != nil {
 		klog.ErrorS(err, "Exiting on error")
 	}
+}
+
+// setupSignalHandler creates a context that is canceled when SIGTERM or SIGINT is received.
+func setupSignalHandler(ctx context.Context) (context.Context, context.CancelFunc) {
+	return signal.NotifyContext(ctx, syscall.SIGTERM, syscall.SIGINT)
 }

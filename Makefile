@@ -4,7 +4,7 @@ _dirty := $(shell git diff --quiet || echo '-dev')
 _tag := $(shell git tag | tail -n 1 | grep "" || echo 'v0.0.0')
 
 VERSION ?= v${_date}-${_tag}-${_hash}
-LATEST := $(shell [ ! -z "${_dirty}" ] && echo 'dev' || echo 'latest')
+LATEST := $(shell [ ! -z "${_dirty}" ] && echo 'latest' || echo '')
 
 REGISTRY := docker.io
 NAME ?= $(shell sed -En 's/^module (.*)$$/\1/p' go.mod | cut -d / -f 3 )
