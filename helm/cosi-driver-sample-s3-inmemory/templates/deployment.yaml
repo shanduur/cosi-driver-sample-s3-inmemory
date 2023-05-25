@@ -1,61 +1,73 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "sample-s3-inmemo.fullname" . }}
+  name: objectstorage-provisioner
   labels:
-    {{- include "sample-s3-inmemo.labels" . | nindent 4 }}
+    app.kubernetes.io/part-of: container-object-storage-interface
+    app.kubernetes.io/component: driver-sample
+    app.kubernetes.io/version: main
+    app.kubernetes.io/name: cosi-driver-sample
 spec:
-  {{- if not .Values.autoscaling.enabled }}
-  replicas: {{ .Values.replicaCount }}
-  {{- end }}
+  replicas: 1
+  minReadySeconds: 30
+  progressDeadlineSeconds: 600
+  revisionHistoryLimit: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
-      {{- include "sample-s3-inmemo.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/part-of: container-object-storage-interface
+      app.kubernetes.io/component: driver-sample
+      app.kubernetes.io/version: main
+      app.kubernetes.io/name: cosi-driver-sample
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
-      annotations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
       labels:
-        {{- include "sample-s3-inmemo.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/part-of: container-object-storage-interface
+        app.kubernetes.io/component: driver-sample
+        app.kubernetes.io/version: main
+        app.kubernetes.io/name: cosi-driver-sample
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "sample-s3-inmemo.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      serviceAccountName: objectstorage-provisioner-sa
+      volumes:
+        - name: socket
+          emptyDir: {}
       containers:
-        - name: {{ .Chart.Name }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - name: http
-              containerPort: {{ .Values.service.port }}
-              protocol: TCP
-          livenessProbe:
-            httpGet:
-              path: /
-              port: http
-          readinessProbe:
-            httpGet:
-              path: /
-              port: http
+        - name: cosi-driver
+          image: docker.io/shanduur/cosi-driver-sample-s3-inmemory:latest
+          imagePullPolicy: IfNotPresent
+          args:
+            - "-v=5"
+          volumeMounts:
+            - mountPath: /var/lib/cosi
+              name: socket
           resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+            limits:
+              cpu: 100m
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 1Gi
+        - name: objectstorage-provisioner-sidecar
+          image: gcr.io/k8s-staging-sig-storage/objectstorage-sidecar/objectstorage-sidecar:v20230130-v0.1.0-24-gc0cf995
+          imagePullPolicy: IfNotPresent
+          args:
+            - "-v=5"
+          env:
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          volumeMounts:
+            - mountPath: /var/lib/cosi
+              name: socket
+          resources:
+            limits:
+              cpu: 100m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi

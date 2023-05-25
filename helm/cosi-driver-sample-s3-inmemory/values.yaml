@@ -2,26 +2,16 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-replicaCount: 1
+imagePullPolicy: IfNotPresent
+logVerbosity: 5
 
-image:
-  repository: nginx
-  pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
+driver:
+  image: docker.io/shanduur/cosi-driver-sample-s3-inmemory
+  tag: latest
 
-imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
-
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
+sidecar:
+  image: gcr.io/k8s-staging-sig-storage/objectstorage-sidecar/objectstorage-sidecar
+  tag: v20230130-v0.1.0-24-gc0cf995
 
 podAnnotations: {}
 
@@ -67,16 +57,3 @@ resources: {}
   # requests:
   #   cpu: 100m
   #   memory: 128Mi
-
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
-
-nodeSelector: {}
-
-tolerations: []
-
-affinity: {}
